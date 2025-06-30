@@ -4,6 +4,7 @@ import { fetchPage } from "./crawler/fetchPage.js";
 import { parsePage } from "./crawler/parsePage.js";
 import { saveToMongo } from "./storage/saveToMongo.js";
 import { isVisited, markVisited } from "./queue/visited.js";
+import { increment, printStatus } from "./utils/logger.js";
 
 dotenv.config();
 
@@ -16,16 +17,20 @@ let crawlQueue = [startUrl]; // FIFO for BFS
 let crawled = 0;
 
 async function crawlUrl(url) {
-  if (isVisited(url) || crawled >= maxPages) return;
+  if (isVisited(url) || crawled >= maxPages) {
+    increment("skipped");
+    return;
+  }
 
   console.log(`🔗  ${url}`);
   try {
     const html = await fetchPage(url);
     const { title, text, links } = parsePage(html, url);
     await saveToMongo({ url, title, text });
-    console.log("saved to mongo");
+
     markVisited(url);
     crawled += 1;
+    increment("crawled");
 
     // BFS: enqueue new links at tail
     links.forEach((link) => {
@@ -34,6 +39,7 @@ async function crawlUrl(url) {
       }
     });
   } catch (err) {
+    increment("error");
     console.error(`❌  ${url}  →`, err.message);
   }
 }
@@ -46,5 +52,6 @@ async function crawlUrl(url) {
     await queue.onIdle(); // wait until all workers done
   }
   console.log(`\n✅  Finished. Total pages crawled: ${crawled}\n`);
+  printStatus(crawlQueue.length);
   process.exit(0);
 })();
