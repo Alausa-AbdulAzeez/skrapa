@@ -1,34 +1,50 @@
-const { fetchPage } = require("./crawler/fetchPage");
-const { parsePage } = require("./crawler/parsePage");
-const dotenv = require("dotenv");
-const { saveToMongo } = require("./storage/saveToMongo");
-const { isVisited, markVisited } = require("./queue/visited");
+import dotenv from "dotenv";
+import PQueue from "p-queue";
+import { fetchPage } from "./crawler/fetchPage.js";
+import { parsePage } from "./crawler/parsePage.js";
+import { saveToMongo } from "./storage/saveToMongo.js";
+import { isVisited, markVisited } from "./queue/visited.js";
 
 dotenv.config();
 
-const seedUrl = process.env.START_URL;
-const maxPages = parseInt(process.env.MAX_PAGES);
-let queue = [seedUrl];
-let crawledCount = 0;
+const startUrl = process.env.START_URL;
+const maxPages = parseInt(process.env.MAX_PAGES, 10);
+const concurrency = parseInt(process.env.CONCURRENCY, 10);
 
-const startCrawler = async () => {
-  while (queue.length > 0 && crawledCount < maxPages) {
-    const url = queue.shift();
-    if (isVisited(url)) continue;
+const queue = new PQueue({ concurrency }); // ❶ worker pool
+let crawlQueue = [startUrl]; // FIFO for BFS
+let crawled = 0;
 
-    console.log(`Crawling: ${url}`);
-    try {
-      const html = await fetchPage(url);
-      const { title, text, links } = parsePage(html, url);
-      await saveToMongo({ url, title, text });
+async function crawlUrl(url) {
+  if (isVisited(url) || crawled >= maxPages) return;
 
-      markVisited(url);
-      queue.push(...links.filter((link) => !isVisited(link)));
-      crawledCount++;
-    } catch (err) {
-      console.error(`Error crawling ${url}:`, err.message);
-    }
+  console.log(`🔗  ${url}`);
+  try {
+    const html = await fetchPage(url);
+    const { title, text, links } = parsePage(html, url);
+    await saveToMongo({ url, title, text });
+    console.log("saved to mongo");
+    markVisited(url);
+    crawled += 1;
+
+    // BFS: enqueue new links at tail
+    links.forEach((link) => {
+      if (!isVisited(link) && crawlQueue.length < maxPages) {
+        crawlQueue.push(link);
+      }
+    });
+  } catch (err) {
+    console.error(`❌  ${url}  →`, err.message);
   }
-};
+}
 
-startCrawler();
+(async () => {
+  while (crawlQueue.length && crawled < maxPages) {
+    const nextUrl = crawlQueue.shift(); // FIFO == BFS
+    queue.add(() => crawlUrl(nextUrl)); // ❷ feed worker
+    if (queue.size === 0 && queue.pending === 0) break; // safety
+    await queue.onIdle(); // wait until all workers done
+  }
+  console.log(`\n✅  Finished. Total pages crawled: ${crawled}\n`);
+  process.exit(0);
+})();

@@ -1,11 +1,9 @@
 const visited = new Set();
 
-const isVisited = (url) => {
+export const isVisited = (url) => {
   return visited.has(url);
 };
 
-const markVisited = (url) => {
+export const markVisited = (url) => {
   visited.add(url);
 };
-
-module.exports = { isVisited, markVisited };

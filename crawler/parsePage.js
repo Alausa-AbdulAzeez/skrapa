@@ -1,6 +1,7 @@
-const cheerio = require("cheerio");
+import * as cheerio from "cheerio";
+import { URL } from "url";
 
-const parsePage = (html, baseUrl) => {
+export function parsePage(html, baseUrl) {
   const $ = cheerio.load(html);
   const title = $("title").text().trim();
   const bodyText = $("body").text().replace(/\s+/g, " ").slice(0, 500);
@@ -17,6 +18,4 @@ const parsePage = (html, baseUrl) => {
   });
 
   return { title, text: bodyText, links };
-};
-
-module.exports = { parsePage };
+}
