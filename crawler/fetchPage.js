@@ -7,8 +7,9 @@ dotenv.config();
 const delay = parseInt(process.env.REQUEST_DELAY_MS, 10);
 const maxRetries = parseInt(process.env.MAX_RETRIES, 10);
 
-export const fetchPage = async (url) => {
+export const fetchPage = async (url, depth) => {
   let attempt = 0;
+  console.log(url, depth);
 
   while (attempt <= maxRetries) {
     try {

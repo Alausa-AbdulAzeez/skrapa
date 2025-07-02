@@ -14,7 +14,7 @@ export function printStatus(queueLength) {
   const elapsedSec = ((now - startTime) / 1000).toFixed(1);
   const rate = (crawledCount / elapsedSec).toFixed(2);
 
-  console.clear();
+  // console.clear();
   console.log(`Crawl Stats`);
   console.log(`--------------------------`);
   console.log(`Time elapsed:  ${elapsedSec}s`);

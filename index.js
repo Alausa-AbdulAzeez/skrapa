@@ -14,10 +14,12 @@ const maxPages = parseInt(process.env.MAX_PAGES, 10);
 const concurrency = parseInt(process.env.CONCURRENCY, 10);
 
 const queue = new PQueue({ concurrency }); // worker pool
-let crawlQueue = [startUrl]; // FIFO for BFS
+let crawlQueue = [{ url: startUrl, depth: 0 }]; // FIFO for BFS
+const maxDepth = 3;
 let crawled = 0;
 
-async function crawlUrl(url) {
+async function crawlUrl({ url, depth }) {
+  console.log("INDEX.JS", url);
   if (isVisited(url) || crawled >= maxPages) {
     increment("skipped");
     return;
@@ -32,7 +34,7 @@ async function crawlUrl(url) {
 
   console.log(`🔗  ${url}`);
   try {
-    const html = await fetchPage(url);
+    const html = await fetchPage(url, depth);
     const { title, text, links } = parsePage(html, url);
     await saveToMongo({ url, title, text });
 
@@ -43,7 +45,7 @@ async function crawlUrl(url) {
     // BFS: enqueue new links at tail
     links.forEach((link) => {
       if (!isVisited(link) && crawlQueue.length < maxPages) {
-        crawlQueue.push(link);
+        crawlQueue.push({ url: link, depth: depth + 1 });
       }
     });
   } catch (err) {
@@ -54,8 +56,8 @@ async function crawlUrl(url) {
 
 (async () => {
   while (crawlQueue.length && crawled < maxPages) {
-    const nextUrl = crawlQueue.shift(); // FIFO == BFS
-    queue.add(() => crawlUrl(nextUrl)); // ❷ feed worker
+    const { url, depth } = crawlQueue.shift(); // FIFO == BFS
+    queue.add(() => crawlUrl({ url, depth })); //  feed worker
     if (queue.size === 0 && queue.pending === 0) break; // safety
     await queue.onIdle(); // wait until all workers done
   }
