@@ -20,6 +20,7 @@ const initDb = async () => {
 
     // Ensure URL is unique
     await pages.createIndex({ url: 1 }, { unique: true });
+    await pages.createIndex({ title: "text", text: "text" });
 
     console.log("Connected to MongoDB");
     return { db, pages };
@@ -40,5 +41,15 @@ export const saveToMongo = async ({ url, title, text }) => {
       console.log("DB Error", err?.mwssage);
       throw err;
     }
+  }
+};
+
+export const closeDb = async () => {
+  if (client) {
+    await client.close();
+    client = null;
+    db = null;
+    pages = null;
+    console.log("🔌 Disconnected from MongoDB");
   }
 };
