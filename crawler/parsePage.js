@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import { URL } from "url";
+import { normalizeUrl } from "../utils/utils.js";
 
 export function parsePage(html, baseUrl) {
   const $ = cheerio.load(html);
@@ -15,7 +16,9 @@ export function parsePage(html, baseUrl) {
       if (cleanUrl.startsWith(baseUrl)) {
         links.push(cleanUrl);
       }
-    } catch {}
+    } catch (error) {
+      console.log(error);
+    }
   });
 
   return { title, text: bodyText, links };
