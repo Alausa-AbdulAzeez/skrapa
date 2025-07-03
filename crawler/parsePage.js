@@ -11,8 +11,9 @@ export function parsePage(html, baseUrl) {
     let href = $(el).attr("href");
     try {
       const fullUrl = new URL(href, baseUrl).href;
-      if (fullUrl.startsWith(baseUrl)) {
-        links.push(fullUrl);
+      const cleanUrl = normalizeUrl(fullUrl);
+      if (cleanUrl.startsWith(baseUrl)) {
+        links.push(cleanUrl);
       }
     } catch {}
   });
